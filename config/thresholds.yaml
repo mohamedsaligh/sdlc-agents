@@ -1,0 +1,52 @@
+# Confidence lanes, weights and gates used by the Solution Agent (step 05 score, step 06 gate).
+# Tune after the first few runs; record every change in docs/decisions.md.
+
+thresholds_version: 1
+
+lanes:
+  map:    { weight: 0.30, description: "Manifests, design docs and trace agree on the change radius" }
+  code:   { weight: 0.30, description: "Every named code element was located and diffs anchor to real lines" }
+  data:   { weight: 0.25, description: "describe confirmed baseline data and showed the exact gap for the target" }
+  model:  { weight: 0.15, description: "Model self-assessment of requirement clarity and pattern fit" }
+
+# Overall = weighted sum of lane scores (0-100).
+gate:
+  proceed_min_overall: 70       # overall must be >= this to write the Implementation Plan
+  proceed_min_any_lane: 50      # AND no lane may be below this
+  # Below either threshold the agent writes outputs/questions.md and sets run status BLOCKED.
+
+# Scoring rubric per lane. Score = 100 minus deductions, floor 0. Evidence is mandatory for every claim.
+rubric:
+  map:
+    - { deduct: 25, when: "a radius service was added without a manifest tag match (inferred, not looked up)" }
+    - { deduct: 20, when: "trace shows a hop between radius services that the manifests do not list" }
+    - { deduct: 20, when: "a service in the real trace path is missing from the radius" }
+    - { deduct: 15, when: "any radius manifest has verification.open_gaps non-empty" }
+    - { deduct: 10, when: "any radius manifest lacks 'trace' in verification.sources" }
+  code:
+    - { deduct: 30, when: "a class/mapper/processor named in the plan could not be located" }
+    - { deduct: 20, when: "a diff hunk does not anchor to a located file + line range" }
+    - { deduct: 15, when: "the baseline pattern (closest existing implementation) could not be located" }
+    - { deduct: 10, when: "build command for a radius service is unknown or unverified" }
+  data:
+    - { deduct: 30, when: "describe for the baseline market returned missing[] entries for required_config" }
+    - { deduct: 25, when: "a data script references a table/region not present in describe sources[]" }
+    - { deduct: 15, when: "target market gap was inferred rather than shown by describe (no run for target)" }
+    - { deduct: 10, when: "rows were truncated and the truncated part is relevant to the change" }
+  model:
+    - { deduct: 30, when: "acceptance criteria are missing or do not define an observable outcome" }
+    - { deduct: 20, when: "two sources (Jira vs design doc vs code) contradict and the contradiction is unresolved" }
+    - { deduct: 15, when: "the change has no close existing pattern in any market" }
+    - { deduct: 10, when: "required Jira fields were inferred from text rather than read from fields" }
+
+# Bucket-specific expectations (informative; used to sanity-check the classification)
+bucket_expectations:
+  ONBOARDING:       { typical_epics: ">= 10", typical_radius: ">= 6 services", requires_base_pass: true }
+  MINOR_INITIATIVE: { typical_epics: "1-5",   typical_radius: "2-5 services",  requires_base_pass: false }
+  ENHANCEMENT:      { typical_epics: "1",     typical_radius: "1-3 services",  requires_base_pass: false }
+  BUG_FIX:          { typical_epics: "1",     typical_radius: "1-2 services",  requires_base_pass: false }
+
+# Onboarding work-package sizing
+onboarding:
+  max_epics_per_work_package: 8
+  group_by: [lifecycle_stage, service]     # first by stage, then split by service if still too big

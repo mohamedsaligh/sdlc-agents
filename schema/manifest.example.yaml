@@ -1,0 +1,74 @@
+# EXAMPLE manifest for a fictional routing service. Illustrates the expected level of
+# detail. Names are invented; replace with your platform's identifiers.
+# This file is NOT loaded by agents (lives in schema/, not manifests/).
+
+service: payment-router
+manifest_version: 1
+design_doc: payment-router.md
+design_doc_sha256: 3f1a9c0e7b6d5a4c2e1f0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a
+summary: Selects the outbound clearing route and priority lane for a validated payment.
+role: routing
+
+consumes:
+  - event: payment.validated
+    from: [payment-validator]
+    channel: KAFKA
+
+emits:
+  - event: payment.routed
+    to: [clearing-gateway, settlement-ledger]
+    channel: KAFKA
+  - event: payment.route-rejected
+    to: [exception-manager]
+    channel: KAFKA
+
+hops:
+  upstream: [payment-validator]
+  downstream: [clearing-gateway]
+
+external_interfaces: []
+
+config:
+  tables: [ROUTING_RULE, CLEARING_CALENDAR, PRIORITY_LANE]
+  cache_regions: [routing-rules, clearing-calendar]
+  lookup_keys: [market+clearing+product+direction, clearing+value_date]
+
+code:
+  repo: payment-router
+  key_packages: [com.example.router.rules, com.example.router.lanes]
+  entrypoints: [ValidatedPaymentListener, RouteDecisionProcessor]
+  build: mvn -q -DskipITs verify
+
+tags:
+  markets: [MKT_A, MKT_B]
+  clearings: [CLR_RTP_A, CLR_HV_A, CLR_HV_B]
+  products: [RTP, HVP, LVP]
+  directions: [OUTWARD]
+  channels: [KAFKA]
+  lifecycle_stages: [ROUTING]
+  priorities: [P1_RTP, P2_HIGH_VALUE, P3_LOW_VALUE]
+
+onboarding_recipe:
+  required_config:
+    - table_or_region: ROUTING_RULE
+      key_pattern: market+clearing+product+direction
+      note: one row per product the market sends through the clearing
+    - table_or_region: CLEARING_CALENDAR
+      key_pattern: clearing
+      note: cut-off and holiday calendar; shared if the clearing already exists
+    - table_or_region: PRIORITY_LANE
+      key_pattern: product
+      note: usually already present; verify, do not duplicate
+  required_code: []
+  substitution_rules:
+    - Copy ROUTING_RULE rows from the baseline market, replace market code, keep clearing and product.
+    - CLEARING_CALENDAR is only new when the clearing itself is new to the platform.
+
+invariants:
+  - A payment is routed exactly once; re-delivery of payment.validated must be idempotent on payment_id.
+  - RTP products never fall back to a non-RTP lane.
+
+verification:
+  sources: [design, code, trace, describe]
+  last_verified: 2026-10-28
+  open_gaps: []

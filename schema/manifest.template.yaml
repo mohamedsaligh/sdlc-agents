@@ -1,0 +1,69 @@
+# Service manifest template — copy to manifests/<service>.yaml and fill every field.
+# Rules: schema/manifest.schema.md. Vocabulary: schema/vocabulary.yaml.
+# SHAPE ONLY. No rows, no hostnames, no environment values, no secrets.
+
+service: <service>                 # == folder under __CODE_ROOT__ == design doc stem
+manifest_version: 1
+design_doc: <service>.md           # relative to __DESIGN_DOCS_ROOT__
+design_doc_sha256: <sha256 of the design doc at verification time>
+summary: <one sentence in business language>
+role: <vocabulary: roles>
+
+consumes:
+  - event: <event or topic name>
+    from: [<service>]
+    channel: <vocabulary: channels>
+
+emits:
+  - event: <event or topic name>
+    to: [<service>]
+    channel: <vocabulary: channels>
+
+hops:
+  upstream: [<service>]
+  downstream: [<service>]
+
+external_interfaces:
+  - name: <system name>
+    direction: <INBOUND|OUTBOUND|REQUEST_RESPONSE>
+    protocol: <e.g. MQ, REST, FILE>
+
+config:
+  tables: [<TABLE_NAME>]
+  cache_regions: [<REGION_NAME>]
+  lookup_keys: [<e.g. market+clearing+product+direction>]
+
+code:
+  repo: <service>
+  key_packages: [<com.example.service.x>]
+  entrypoints: [<ListenerOrProcessorClass>]
+  build: <command run from repo root that compiles and runs unit tests>
+
+tags:
+  markets: [<vocabulary: markets>]
+  clearings: [<vocabulary: clearings>]
+  products: [<vocabulary: products>]
+  directions: [<INWARD|OUTWARD>]
+  channels: [<vocabulary: channels>]
+  lifecycle_stages: [<vocabulary: lifecycle_stages>]
+  priorities: [<vocabulary: priorities>]
+
+onboarding_recipe:
+  required_config:
+    - table_or_region: <TABLE_OR_REGION>
+      key_pattern: <market+clearing+product>
+      note: <what the rows control>
+  required_code:
+    - element: <ClassOrMapperName>
+      kind: <mapper|validator|profile|enum|other>
+      note: <why it is per-market>
+  substitution_rules:
+    - <rule in one sentence>
+
+invariants:
+  - <must stay true across markets>
+
+verification:
+  sources: [design]                # add: code, trace, describe as each confirms
+  last_verified: <YYYY-MM-DD>
+  open_gaps: []

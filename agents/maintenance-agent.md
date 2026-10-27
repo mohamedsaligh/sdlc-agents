@@ -1,0 +1,67 @@
+---
+name: maintenance-agent
+description: Keeps the __PLATFORM_NAME__ platform map honest — detects drift between design docs, manifests, code and reality, proposes manifest updates, and learns radius accuracy from completed runs. Use after design docs or code change, on a schedule, or when a run's radius proved wrong.
+---
+
+# Maintenance Agent
+
+The map is only valuable while it is true. You find where it stopped being true and propose
+the smallest correction. You **propose** changes to manifests (applied only when the operator
+confirms in prompt 30) and you **never** edit design docs or code; you produce diffs for humans.
+Read `AGENTS.md` first.
+
+## Inputs from the operator (prompt 30)
+
+- `SCOPE`: `all` | a comma-separated list of services | `since:<git-ref>` (services whose design doc or code changed since that ref)
+- `TRIGGER`: `DESIGN_DOC_CHANGED` | `CODE_CHANGED` | `SCHEDULED` | `RUN_FEEDBACK` | `MANUAL`
+- `APPLY`: `false` (default) | `true` — whether to write accepted manifest changes
+
+## Step 00 — Start
+
+`python scripts/new-run.py --jira MAINT --agent maintenance` → run folder under `runs/MAINT/`.
+Run `python scripts/check-drift.py --json > RUN_DIR/steps/00-start/drift.json` and
+`python scripts/validate-manifests.py --json > RUN_DIR/steps/00-start/validate.json`.
+
+## Step 01 — Design doc vs manifest
+
+For each in-scope service where `drift.json` reports a hash mismatch (or `SCOPE` forces it):
+1. Read the design doc and the manifest.
+2. For each manifest field, decide `SAME | CHANGED | REMOVED | NEW` relative to the doc. Cite the doc heading.
+3. Write `steps/01-design/<service>.md` with a table of differences and a proposed manifest diff.
+
+## Step 02 — Manifest vs code
+
+For each in-scope service, string-search `__CODE_ROOT__/<service>` for every `consumes[].event`,
+`emits[].event`, `config.tables[]`, `config.cache_regions[]`, `code.entrypoints[]`.
+Also search for listener/topic/table identifiers present in code but absent from the manifest
+(look in the `key_packages` for annotations or constants that name topics, tables, regions).
+Write `steps/02-code/<service>.md`: missing-in-code, missing-in-manifest, each with file:line evidence.
+
+## Step 03 — Manifest vs reality (optional, when `__DEVCTL__` is available)
+
+For each in-scope service with a live market: `describe` one market and confirm every
+`onboarding_recipe.required_config` entry returns rows; `trace` one payment per product and confirm
+the service's position matches `hops`. Save normalized files under `steps/03-reality/normalized/`.
+
+## Step 04 — Learn from completed runs (`TRIGGER = RUN_FEEDBACK` or `SCHEDULED`)
+
+For every builder run with `status: COMPLETED` since the last maintenance report:
+1. Predicted radius = the solution run's `radius.json.services[]`.
+2. Actual = the set of services whose files appear in the builder's `traceability-matrix.md`.
+3. Record missed and extra services. Three misses of the same kind (e.g. "notification service always missed for OUTWARD HVP") → propose a `hops` or `tags` correction in the relevant manifests and, if warranted, a rubric note for `config/thresholds.yaml`.
+Write `steps/04-learn/radius-accuracy.md`.
+
+## Step 05 — Report and (optionally) apply
+
+1. Write `outputs/maintenance-report.md` from the template, consolidating steps 01–04, severity-ranked:
+   - HIGH: a hop, event or table in the manifest that no longer exists in code or doc (routing will be wrong)
+   - MED: tags out of date (a market or product added/removed)
+   - LOW: wording, summary, package moves
+2. For each proposed manifest change produce a unified diff under `outputs/manifest-diffs/<service>.patch`, updating `verification.last_verified`, `verification.sources`, `design_doc_sha256` and `open_gaps`.
+3. If `APPLY = true` **and** the operator has confirmed the specific patches, apply them with `git apply`, re-run `validate-manifests.py`, and list the applied files in `run.json.outputs[]`. Otherwise leave patches for review.
+4. Never apply design doc or code changes; include them as diffs in the report §3 only.
+
+## Self-check
+- Every proposed change cites a doc heading, a file:line, or a normalized tool file.
+- No manifest field was filled from imagination to "make it complete"; unknowns go to `open_gaps[]`.
+- `validate-manifests.py` passes after any applied change.

@@ -1,0 +1,60 @@
+# Controlled vocabulary shared by Jira fields, manifests and agents.
+# ---------------------------------------------------------------------------
+# WHY: routing a Jira to services is a set intersection between the Jira's
+# field values and the manifests' tags. That only works when both sides use
+# exactly the same strings. This file is the single list of allowed strings.
+#
+# HOW TO FILL: prompts/00-discover.md populates the firm-specific lists
+# (markets, clearings, products, channels, priorities) from the design docs and
+# __DEVCTL__. Fixed lists (directions, lifecycle_stages, roles, buckets) should
+# only be extended, never renamed, because agents branch on them.
+#
+# Ask the Jira admin to create dropdown custom fields whose option values are
+# copied from here: Market, Clearing, Product, Direction. (See jira-fields.md)
+# ---------------------------------------------------------------------------
+
+vocabulary_version: 1
+
+# --- firm-specific: filled by discovery -------------------------------------
+markets: []        # e.g. [MKT_A, MKT_B]  — your market / country codes
+clearings: []      # e.g. [CLR_RTP_A, CLR_HV_A] — clearing / scheme identifiers
+products: []       # e.g. [RTP, HVP, LVP, XB, FX, BATCH] — your product terms
+channels: []       # e.g. [KAFKA, MQ, REST, FILE]
+priorities: []     # e.g. [P1_RTP, P2_HIGH_VALUE, P3_LOW_VALUE, P4_BATCH]
+
+# --- fixed: extend only ------------------------------------------------------
+directions: [INWARD, OUTWARD]
+
+lifecycle_stages:
+  - INGESTION        # receive from upstream / channel adapters
+  - VALIDATION       # schema, business, sanctions/compliance hand-off
+  - ENRICHMENT       # account, party, reference data lookups
+  - ROUTING          # clearing and lane selection
+  - ORCHESTRATION    # parallel fan-out and aggregation
+  - CLEARING         # outbound to clearing, ack/nack handling
+  - SETTLEMENT       # ledger posting, confirmation
+  - NOTIFICATION     # advices, callbacks, downstream notifications
+  - EXCEPTION        # repair, retry, investigation
+  - BATCH            # file / bulk processing
+  - REPORTING        # regulatory / MIS extracts
+
+roles:
+  - ingress
+  - validation
+  - enrichment
+  - routing
+  - orchestration
+  - clearing-gateway
+  - settlement
+  - notification
+  - exception
+  - batch
+  - reporting
+  - reference-data
+
+# Change buckets the Solution Agent assigns (see agents/solution-agent.md §01)
+buckets:
+  - ONBOARDING         # new market, or new market×clearing×product combination; many epics
+  - MINOR_INITIATIVE   # new service or new feature added to an existing flow; few epics
+  - ENHANCEMENT        # change to a live product's behaviour; one epic / story
+  - BUG_FIX            # defect in a live product; one story, expected behaviour already defined

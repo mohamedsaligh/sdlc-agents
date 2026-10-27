@@ -1,0 +1,11 @@
+# raw tool responses may contain unmasked data; normalized copies are committed
+runs/**/raw/
+# local scratch
+runs/_scratch/
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+# IDE
+.vscode/settings.json
+.idea/
