@@ -27,5 +27,5 @@ Scores at stop (if scored): Overall <n> · MAP <n> · CODE <n> · DATA <n> · MO
 |---|---|---|---|
 
 ## How to resume
-1. Add the answers to the Jira (fields, acceptance criteria, or a comment titled `agent-guidance`).
+1. Add the answers to the Jira (fields, acceptance criteria, or a comment whose first line is `agent-guidance` — Step 00 reads those), or pass them as `GUIDANCE` in prompt 10.
 2. Re-run `prompts/10-run-solution-agent.md` with the same key. The new run's header will set `supersedes: <this execution_id>`.

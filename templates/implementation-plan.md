@@ -1,6 +1,7 @@
 <!-- templates/implementation-plan.md — TECHNICAL document. Audience: engineers, Builder Agent.
-     Rules: the Builder executes this literally. Every file path relative to __CODE_ROOT__.
-     Every diff anchored to located lines. Every data statement paired with rollback.
+     Rules: the Builder executes this literally. Section headings name files as <service>/<path>;
+     diff headers inside a block are relative to that service's repo root (the Builder applies from inside the repo).
+     Every diff anchored to located lines and to the anchor commit in §0. Every data statement paired with rollback.
      Keep every heading. This file's SHA-256 is recorded at approval; do not edit after approval. -->
 
 <!-- paste templates/_header.md here with document: implementation-plan -->
@@ -10,16 +11,17 @@
 ## 0. Builder contract
 - Bucket: <bucket> · Work package: <WP-id or n/a> · Baseline: <market × clearing × product>
 - Services in radius (in build order): `service-a`, `service-b`, …
-- Branch name: `feature/<JIRA-KEY>-<short-slug>` (same name in every touched repo)
+- Branch name: `feature/<JIRA-KEY>-<short-slug>` — slices: `feature/<JIRA-KEY>-<WP-id>-<short-slug>` (same name in every touched repo; must not already exist)
+- Anchor commits (from `steps/03-load/load-summary.json#anchors`): `service-a @ <sha>`, `service-b @ <sha>` …
 - Build per service: `<code.build from manifest>`
 - Expected new/changed tests: <n> (listed in §4)
 - Acceptance criteria covered: AC-1, AC-2 … (traceability in §7)
 
 ## 1. Change radius
 
-| Service | Why in radius (manifest tag match / trace hop / dependency) | Change type | Files touched |
+| Service | Why in radius (manifest tag match / trace hop / dependency) | Change type | Files (every path the Builder may touch, incl. new test files) |
 |---|---|---|---|
-| | | CODE / CONFIG / DATA / TEST | <n> |
+| | | CODE / CONFIG / DATA / TEST | `src/...`, `src/test/...` |
 
 Services considered and excluded, with reason: …
 
@@ -31,8 +33,8 @@ Purpose: <one line>. Anchored at lines <a>–<b> (`steps/03-load/normalized/loca
 Pattern copied from: `<baseline file>:<lines>` (if reused).
 
 ```diff
---- a/<service>/<path/to/File.java>
-+++ b/<service>/<path/to/File.java>
+--- a/<path/to/File.java>
++++ b/<path/to/File.java>
 @@ -41,6 +41,9 @@
  context lines
 +added lines
@@ -43,6 +45,7 @@ Pattern copied from: `<baseline file>:<lines>` (if reused).
      environment-specific values are parameters in ${...}. -->
 
 ### 3.1 `<TABLE_OR_REGION>` — <ADD | CHANGE | REMOVE> for <market>
+Execution: `executed_by: <team / role that runs data scripts>` · `change_ticket: <to be raised by the engineer>` · environments in order: <DEV → UAT → PROD>
 Derived from baseline rows: `steps/03-load/normalized/describe-<n>.json#sources[ROUTING_RULE]`
 Substitution rule applied: <from manifest onboarding_recipe.substitution_rules>
 
@@ -59,7 +62,7 @@ Cache invalidation required: <region name or None>. Ordering constraints: <e.g. 
 | Service | Test class / method | Type | Covers AC | New or Modified |
 |---|---|---|---|---|
 
-Minimum expectation: every new branch of logic has a unit test; every new static data row has at least one test or an assertion in an existing flow test.
+Minimum expectation: every new branch of logic has a unit test; every new static data row has at least one test or an assertion in an existing flow test. **Every test listed here has a diff block in §2** (new files as full-file diffs) — the Builder may not write a test that has no diff.
 
 ## 5. Execution order for the Builder
 1. `service-a`: apply §2.x, run build, must pass.

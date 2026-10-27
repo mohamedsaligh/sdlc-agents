@@ -1,0 +1,6 @@
+# Hashes (plan approval, design-doc drift) must agree across Windows, Mac and Linux.
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+*.png binary
+*.jpg binary

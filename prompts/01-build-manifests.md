@@ -22,7 +22,7 @@ For **each** service do all seven steps before moving to the next:
 4. **Onboarding recipe.** From the doc and the code, list what must exist for a market to be live in this service: config rows (table/region + key pattern + what they control) and per-market code elements. Write substitution rules as instructions a junior engineer could follow. If the service is market-agnostic, say so in `required_config[0].note` and keep `required_code: []`.
 5. **Invariants.** Capture the rules that must hold across all markets (idempotency, ordering, SLA, limits, cut-offs). Prefer the doc's wording.
 6. **Hashes and verification.** Compute SHA-256 of the design doc file (`python scripts/new-run.py --hash "<path>"`) into `design_doc_sha256`. Set `verification.sources` to `[design, code]`, `last_verified` to today, and `open_gaps` as collected. Do not claim `trace` or `describe` yet — prompt 02 adds those.
-7. **Validate.** Save as `manifests/<service>.yaml`, run `python scripts/validate-manifests.py`, and fix every error. Warnings are acceptable only if explained in a comment in the manifest.
+7. **Validate.** Save as `manifests/<service>.yaml`, run `python scripts/validate-manifests.py`, and fix every error. Warnings about services "with no manifest" are expected while batches are still being built; all other warnings are acceptable only if explained in a comment in the manifest. (Once every service has a manifest, `--strict` turns dangling references into errors.)
 
 After the batch, print a table: service · lines · open_gaps count · validator status · anything you need me to confirm.
 

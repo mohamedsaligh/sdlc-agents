@@ -16,21 +16,22 @@ gate:
   # Below either threshold the agent writes outputs/questions.md and sets run status BLOCKED.
 
 # Scoring rubric per lane. Score = 100 minus deductions, floor 0. Evidence is mandatory for every claim.
+# Each rule applies ONCE per lane, except rules marked per_service, which apply per radius service, capped at 2 applications.
 rubric:
   map:
-    - { deduct: 25, when: "a radius service was added without a manifest tag match (inferred, not looked up)" }
+    - { deduct: 25, when: "a radius service was added with reason other than tag_match, trace_hop, hop_neighbour, jira_named, onboarding_recipe or work_package (i.e. inferred)" }
     - { deduct: 20, when: "trace shows a hop between radius services that the manifests do not list" }
     - { deduct: 20, when: "a service in the real trace path is missing from the radius" }
-    - { deduct: 15, when: "any radius manifest has verification.open_gaps non-empty" }
-    - { deduct: 10, when: "any radius manifest lacks 'trace' in verification.sources" }
+    - { deduct: 15, when: "a radius manifest has verification.open_gaps non-empty", per_service: true }
+    - { deduct: 10, when: "a radius manifest lacks 'trace' in verification.sources", per_service: true }
   code:
-    - { deduct: 30, when: "a class/mapper/processor named in the plan could not be located" }
-    - { deduct: 20, when: "a diff hunk does not anchor to a located file + line range" }
+    - { deduct: 30, when: "a class/mapper/processor named in analysis.md's code change list could not be located" }
+    - { deduct: 20, when: "a code change in analysis.md does not anchor to a located file + line range" }
     - { deduct: 15, when: "the baseline pattern (closest existing implementation) could not be located" }
     - { deduct: 10, when: "build command for a radius service is unknown or unverified" }
   data:
     - { deduct: 30, when: "describe for the baseline market returned missing[] entries for required_config" }
-    - { deduct: 25, when: "a data script references a table/region not present in describe sources[]" }
+    - { deduct: 25, when: "a data change in analysis.md references a table/region not present in describe sources[]" }
     - { deduct: 15, when: "target market gap was inferred rather than shown by describe (no run for target)" }
     - { deduct: 10, when: "rows were truncated and the truncated part is relevant to the change" }
   model:

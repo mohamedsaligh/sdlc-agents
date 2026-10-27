@@ -7,15 +7,17 @@ Timelines are yours; the order is not negotiable because each step feeds the nex
 
 | # | Do | Who | Exit test |
 |---|----|-----|-----------|
-| 1.1 | Edit `config/platform.env`, then `scripts\init-project.cmd` (Windows) or `bash scripts/init-project.sh` | Eng lead | `config/.initialized` exists; `grep -r "__PLATFORM_NAME__" .` finds nothing outside `scripts/init-project.*` |
+| 1.1 | Edit `config/platform.env`, then `scripts\init-project.cmd` (Windows) or `bash scripts/init-project.sh` | Eng lead | `config/.initialized` exists; `python scripts/init-project.py --verify` reports no unreplaced placeholders |
 | 1.2 | `python scripts/sync-agents.py` | Eng lead | `.github/agents/` and `.claude/agents/` contain three agents each |
+| 1.2b | `python scripts/make-workspace.py` and open the generated `.code-workspace` in VS Code (or start Claude Code with the printed `--add-dir` flags) | Eng lead | the chat can list files under `__CODE_ROOT__` and `__DESIGN_DOCS_ROOT__` |
+| 1.2c | Ask the repo admin for CODEOWNERS on `runs/**/approval.json` (BA team + engineering leads) and signed commits | Eng lead | approvals cannot be committed by anyone else |
 | 1.3 | Connect Jira and `__DEVCTL__` MCP servers in VS Code / Claude Code | Eng lead | tools visible in the chat's tool list |
 | 1.4 | Run `prompts/00-discover.md` | Eng lead | `config/tools.md` and `schema/devctl-contracts.md` filled; `docs/discovery/discovery-report.md` Readiness clear |
 | 1.5 | Ask the Jira admin for the four dropdown fields (`schema/jira-fields.md`) | Eng lead / BA | fields exist, or the `agent-fields:` fallback agreed with BAs |
 | 1.6 | Run `prompts/01-build-manifests.md` in batches of 4–6 services | Eng lead (+ service owners for review) | `python scripts/validate-manifests.py` → 0 errors; every design doc has a manifest |
 | 1.7 | Run `prompts/02-triangulate.md` for the main product, then RTP, then batch | Eng lead | every product verdict `READY`; `python scripts/check-drift.py` → 0 HIGH |
 | 1.8 | Run `prompts/03-validate-repo.md` in a fresh session | A second engineer | `docs/readiness-report.md` says `READY FOR FIRST REAL RUN` |
-| 1.9 | Commit; tag `map-v1` | Eng lead | tag exists; `run.json.map_version` will reference it |
+| 1.9 | Commit; tag `map-v1` | Eng lead | tag exists; `run.json.map_version` (short SHA) resolves to it |
 
 ## Phase 2 — Solution Agent demo
 
@@ -32,10 +34,11 @@ Timelines are yours; the order is not negotiable because each step feeds the nex
 
 | # | Do | Who | Exit test |
 |---|----|-----|-----------|
-| 3.1 | BA and engineer write `approval.json` (see `prompts/20-run-builder-agent.md`) | BA + Engineer | hash matches the plan |
+| 3.1 | BA commits `approval.json` (own identity), then engineer commits their block (see `prompts/20-run-builder-agent.md`) | BA + Engineer | hash matches the plan; `git log -- approval.json` shows two humans |
 | 3.2 | Run `prompts/20-run-builder-agent.md` with `DRY_RUN: true` | Engineer | builds and tests pass; artefacts produced; no PR |
 | 3.3 | Run again with `DRY_RUN: false` | Engineer | PR(s) raised with `pr-summary.md`; Jira has attachments; traceability matrix has 0 unmapped files |
 | 3.4 | Human code review and merge as usual | Team | merged |
+| 3.4b | Data scripts: engineer raises the change ticket named in plan §3, the owning team executes apply (and keeps rollback ready) per environment | Engineer + data owners | ticket closed; `run.json.notes` records ticket id |
 | 3.5 | Run `prompts/30-run-maintenance-agent.md` with `TRIGGER: RUN_FEEDBACK` | Eng lead | radius accuracy recorded; any manifest fixes applied |
 
 ## Phase 4 — Distribution (design only for now)
@@ -51,3 +54,4 @@ Timelines are yours; the order is not negotiable because each step feeds the nex
 - Design doc changed → prompt 30 with `TRIGGER: DESIGN_DOC_CHANGED` (CI's drift check will remind you).
 - Weekly → prompt 30 with `TRIGGER: SCHEDULED`.
 - Changing an agent → edit `agents/*.md`, run `python scripts/sync-agents.py`, commit both.
+- Runs → each agent commits its own run folder (no push); push `runs/` with your normal pushes. When more than one team uses the map, move to the separate runs repository (decision D-10) so `main` of this repo only changes when the map changes.

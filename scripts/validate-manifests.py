@@ -28,6 +28,7 @@ REQUIRED = [
     "invariants", "verification.sources", "verification.last_verified", "verification.open_gaps",
 ]
 # lists allowed to be empty without a note
+# documented in schema/manifest.schema.md "Empty lists are allowed..."
 MAY_BE_EMPTY = {"onboarding_recipe.required_code", "verification.open_gaps", "external_interfaces",
                 "tags.channels", "tags.priorities", "tags.clearings", "tags.markets"}
 VOCAB_FIELDS = {
@@ -47,6 +48,27 @@ def get(d, dotted):
             return None
         cur = cur[part]
     return cur
+
+
+def referential_checks(manifests):
+    """Every service named in hops/consumes.from/emits.to must have a manifest."""
+    known = set(manifests)
+    out = {}
+    for name, m in manifests.items():
+        errs = []
+        refs = []
+        hops = m.get("hops") or {}
+        refs += [("hops.upstream", s) for s in hops.get("upstream") or []]
+        refs += [("hops.downstream", s) for s in hops.get("downstream") or []]
+        for c in m.get("consumes") or []:
+            refs += [("consumes[].from", s) for s in (c or {}).get("from") or []]
+        for e in m.get("emits") or []:
+            refs += [("emits[].to", s) for s in (e or {}).get("to") or []]
+        for field, s in refs:
+            if s not in known:
+                errs.append(f"{field}: '{s}' has no manifest (dangling service name breaks routing)")
+        out[name] = errs
+    return out
 
 
 def validate(path, vocab):
@@ -110,6 +132,8 @@ def validate(path, vocab):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--out", default=None, help="write JSON report to this file (UTF-8)")
+    ap.add_argument("--strict", action="store_true", help="treat dangling service references as errors (use once all manifests exist: prompts 02/03, CI)")
     ap.add_argument("--dir", default=os.path.join(REPO_ROOT, "manifests"))
     args = ap.parse_args()
 
@@ -118,13 +142,27 @@ def main():
 
     files = sorted(f for f in os.listdir(args.dir) if f.endswith((".yaml", ".yml")) and not f.startswith("_"))
     report = {"manifests": {}, "error_count": 0, "warning_count": 0}
+    loaded = {}
     for f in files:
         errs, warns = validate(os.path.join(args.dir, f), vocab)
         report["manifests"][f] = {"errors": errs, "warnings": warns}
-        report["error_count"] += len(errs)
-        report["warning_count"] += len(warns)
+        try:
+            loaded[os.path.splitext(f)[0]] = yaml.safe_load(open(os.path.join(args.dir, f), encoding="utf-8")) or {}
+        except yaml.YAMLError:
+            pass
+    for name, refs in referential_checks(loaded).items():
+        bucket = "errors" if args.strict else "warnings"
+        report["manifests"][name + ".yaml"][bucket].extend(refs if args.strict else [r + " [becomes an error with --strict]" for r in refs])
+    for r in report["manifests"].values():
+        report["error_count"] += len(r["errors"])
+        report["warning_count"] += len(r["warnings"])
 
-    if args.json:
+    if args.out:
+        os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
+        with open(args.out, "w", encoding="utf-8") as fh:
+            json.dump(report, fh, indent=2)
+        print(f"wrote {args.out}: {report['error_count']} error(s), {report['warning_count']} warning(s)")
+    elif args.json:
         print(json.dumps(report, indent=2))
     else:
         if not files:

@@ -14,10 +14,8 @@ jobs:
       - name: Generated agents are current
         run: python scripts/sync-agents.py --check
       - name: Manifests validate
-        run: python scripts/validate-manifests.py
-      - name: No unreplaced placeholders outside init scripts
-        run: |
-          if grep -rIl --exclude-dir=.git --exclude-dir=runs --exclude='init-project.*' --exclude='map-check.yml' -e '__PLATFORM_NAME__' -e '__DEVCTL__' -e '__AI_PLATFORM__' -e '__CODE_ROOT__' -e '__DESIGN_DOCS_ROOT__' . ; then
-            echo "::warning::placeholders still present (expected before scripts/init-project has run)"; fi
+        run: python scripts/validate-manifests.py --strict
+      - name: No unreplaced placeholders (warning only until init-project has run)
+        run: python scripts/init-project.py --verify || echo "::warning::placeholders still present (expected before scripts/init-project has run)"
       # check-drift.py needs CODE_ROOT and DESIGN_DOCS_ROOT; run it on a self-hosted runner that mounts them:
       # - run: python scripts/check-drift.py

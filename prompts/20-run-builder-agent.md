@@ -1,7 +1,6 @@
 # Prompt 20 — Run the Builder Agent on an approved plan
 
-**Before you run**: both reviewers must have written `approval.json` into the solution run folder.
-Create it like this (edit the values), then compute the plan hash:
+**Before you run**: both reviewers must have **committed** `approval.json` into the solution run folder, each in their own commit under their own git identity (BA first with the `ba` block filled and `engineer.decision` left as `PENDING`; engineer second, filling the `engineer` block). The Builder checks `git log` authorship, not just the file. Create it like this (edit the values), then compute the plan hash:
 
 ```
 python scripts/new-run.py --hash runs/<JIRA-KEY>/<SOLUTION_EXECUTION_ID>/outputs/implementation-plan.md
@@ -18,7 +17,7 @@ python scripts/new-run.py --hash runs/<JIRA-KEY>/<SOLUTION_EXECUTION_ID>/outputs
 
 **How to run**: select the **builder-agent** custom agent (Copilot) or ask Claude Code to use the
 builder-agent sub-agent, then paste the block below. Service repos under `__CODE_ROOT__` must be clean
-working trees on their default branch.
+working trees on their default branch, and the chat must be open in the multi-root workspace (`scripts/make-workspace.py`).
 
 ---
 

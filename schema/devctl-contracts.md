@@ -48,7 +48,7 @@ Question it answers: *"What configuration does service S actually have for marke
 Rules: `sources[]` must contain one entry for every `config.tables[]` and
 `config.cache_regions[]` named in the service's manifest — with `row_count: 0` and
 `rows: []` when nothing exists for that market. Names the tool did not return at all go
-to `missing[]`. Secrets or PII columns are masked as `"***"` before saving.
+to `missing[]`. `rows[]` is **projected and masked per section C** before saving: `row_count` is always the full count, but a row carries only the lookup-key columns plus behaviour columns, never customer, account or credential data. In lean mode (onboarding base pass) `rows` may be omitted entirely.
 
 ### A.2 `locate` — find code elements
 
@@ -112,7 +112,7 @@ names to service names in Section B). Payment references and customer data are m
 ## B. Raw → normalized mapping  (FILLED BY `prompts/00-discover.md`)
 
 > Status: **NOT YET DISCOVERED**. Run prompt 00. Agents must refuse to proceed past
-> step 03 while this status line is present.
+> step 03 while this status line is present. **Prompt 00 Task 7 deletes this status line** once B.1–B.3 are filled.
 
 For each capability, discovery records:
 
@@ -131,3 +131,18 @@ _(empty)_
 
 ### B.3 trace
 _(empty)_
+
+---
+
+## C. Masking and projection rules (deterministic — not left to judgement)
+
+Normalized files are committed to git; raw files are not. Before writing any normalized file:
+
+1. **Project rows** to: every column named in the manifest's `config.lookup_keys[]` patterns, plus columns whose names indicate behaviour (`*_FLAG`, `*_CODE`, `*_TYPE`, `*_RULE`, `*_LIMIT`, `*_PRIORITY`, `*_CUTOFF`, `*_CALENDAR`, `STATUS`, `ENABLED`, `ACTIVE`). Every other column is dropped from the row (not masked — dropped) and its name listed once in `sources[].dropped_columns[]`.
+2. **Mask** any kept value whose column name matches, case-insensitively, `.*(PASS|PWD|SECRET|TOKEN|KEY_MATERIAL|CERT|PRIVATE|IBAN|ACCOUNT_NO|ACCT|BIC_OWNER|NAME|ADDRESS|PHONE|EMAIL|TAX_ID|NATIONAL_ID).*` → `"***"`. Host names, URLs and ports are masked to their last path segment or `"***"`.
+3. **Trace**: `payment_ref` is replaced by its first 4 characters + `…` + SHA-256 first 8 hex; amounts are rounded to 2 significant figures; counterparties are dropped.
+4. **Locate**: snippets are at most 20 lines and must not include string literals longer than 40 characters (replace with `"…"`).
+5. **Jira**: `jira.md` keeps summary, description, acceptance criteria, routing fields; attachments and people fields (reporter, assignee, watchers) are reduced to display names only.
+6. If a column cannot be classified, drop it and record it in `dropped_columns[]`; dropping is always the safe default.
+
+Discovery (prompt 00) may **extend** the regex in rule 2 with firm-specific column names; it may never shorten it.

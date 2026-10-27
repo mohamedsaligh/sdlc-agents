@@ -1,5 +1,5 @@
-# raw tool responses may contain unmasked data; normalized copies are committed
-runs/**/raw/
+# raw tool/Jira responses may contain unmasked data; normalized, masked copies are committed
+**/raw/
 # local scratch
 runs/_scratch/
 __pycache__/
@@ -9,3 +9,5 @@ Thumbs.db
 # IDE
 .vscode/settings.json
 .idea/
+# generated per machine
+*.code-workspace

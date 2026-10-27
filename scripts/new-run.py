@@ -58,10 +58,11 @@ def read_version(path, key):
 
 
 def sha256_file(path):
+    """SHA-256 of the file with CR bytes removed, so Windows (CRLF) and Linux (LF) checkouts agree."""
     h = hashlib.sha256()
     with open(path, "rb") as fh:
         for chunk in iter(lambda: fh.read(65536), b""):
-            h.update(chunk)
+            h.update(chunk.replace(b"\r", b""))
     return h.hexdigest()
 
 

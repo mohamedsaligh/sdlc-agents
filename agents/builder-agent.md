@@ -17,7 +17,7 @@ Read `AGENTS.md` first; its rules override anything else.
 
 ## Hard rules
 
-1. Only files named in the plan's §1 "Files touched" and §2/§3 may change. Touching any other file = `FAILED`.
+1. Only files listed in the plan's §1 file list (code, config, tests) and §2/§3 may change. Touching any other file = `FAILED`.
 2. No self-healing beyond the plan: if a build or test fails, you may make **at most one** mechanical fix per service that is clearly implied by the plan (missing import, typo in a path from the plan). Record it in `deviations[]`. A second failure = `FAILED`, stop, report.
 3. Never push to a protected branch, never merge, never close anything. Raising the PR is your last action.
 4. Never run data scripts against any environment. You write them into the repo location the plan names (or `RUN_DIR/outputs/data-scripts/`), you do not execute them.
@@ -26,7 +26,8 @@ Read `AGENTS.md` first; its rules override anything else.
 ## Step 00 — Verify approval (gate)
 
 1. `python scripts/new-run.py --jira <JIRA_KEY> --agent builder --parent <SOLUTION_EXECUTION_ID>` → `EXECUTION_ID`, `RUN_DIR`.
-2. Locate `SOL_DIR = runs/<JIRA_KEY>/<SOLUTION_EXECUTION_ID>/`. Require `SOL_DIR/approval.json` with `ba.decision == APPROVED` **and** `engineer.decision == APPROVED`.
+2. Locate `SOL_DIR = runs/<JIRA_KEY>/<SOLUTION_EXECUTION_ID>/`. Require `SOL_DIR/approval.json` with `ba.decision == APPROVED` **and** `engineer.decision == APPROVED`, and `SOL_DIR/run.json` **without** `superseded_by`.
+   **Provenance**: run `git log --format='%an <%ae> %H' -- SOL_DIR/approval.json`. The file must be committed (not just on disk), the two most recent commits touching it must be by two different humans whose names match `ba.by` and `engineer.by`, and neither may be the identity this agent commits with. If the repo enforces CODEOWNERS on `runs/**/approval.json`, that is the second control.
 3. Compute SHA-256 of `SOL_DIR/outputs/implementation-plan.md` and require it to equal `approval.json.plan_sha256`. (Use `python scripts/new-run.py --hash <file>` to print a hash.)
 4. Copy the plan to `RUN_DIR/steps/00-gate/implementation-plan.md` and write `RUN_DIR/steps/00-gate/gate.json` (`{approved: true, plan_sha256, ba, engineer}`).
 5. If any requirement fails: `gate.json.approved = false` with the reason, `run.json.status = BLOCKED`, stop.
@@ -44,45 +45,46 @@ Check: every diff block in §2 maps to one entry; every §3 block has both apply
 For each service in `worklist.services`, in `__CODE_ROOT__/<service>`:
 1. Confirm the working tree is clean (`git status --porcelain` empty). If not, `BLOCKED` — never stash or discard someone's work.
 2. Record the base commit (`git rev-parse HEAD`) in `steps/02-prepare/<service>.json`.
-3. Create or check out the branch named in the plan (same name in every repo).
+3. Compare `HEAD` with the plan's §0 anchor commit for this service. Equal → continue. Different → `git apply --check` will decide later, but record `anchor_drift: true` in `steps/02-prepare/<service>.json` and add a deviation; if the plan's anchor commit is not an ancestor of `HEAD`, `BLOCKED` (the plan was written against a different line of history).
+4. Create the branch named in the plan (slices: the name includes the WP id). If the branch already exists locally or on the remote, `BLOCKED` — never stack work on an existing branch. In `DRY_RUN`, use `dryrun/<same-name>` instead.
 
 ## Step 03 — Baseline build and coverage (the "before" numbers)
 
-For each service, on the base commit: run the manifest's `code.build` with coverage enabled (JaCoCo or project equivalent). Save console output to `steps/03-baseline/<service>/build.log` and copy the coverage report folder to `steps/03-baseline/<service>/coverage/`. If the baseline itself fails, `BLOCKED` with the log — the repo is not in a buildable state and that is not yours to fix.
+For each service, on the base commit: run the manifest's `code.build` with coverage enabled (JaCoCo or project equivalent). Save console output to `steps/03-baseline/<service>/build.log` and copy **only** the XML report (`jacoco.xml` or equivalent) to `steps/03-baseline/<service>/coverage.xml`. Never copy HTML report folders into the run. If the baseline itself fails, `BLOCKED` with the log — the repo is not in a buildable state and that is not yours to fix.
 
 ## Step 04 — Apply code changes
 
 For each file in plan order:
-1. Write the diff block to `steps/04-apply/<service>/<n>.patch` and apply with `git apply --check` then `git apply`. If the patch does not apply cleanly, try `git apply --3way` once; if still failing, `FAILED` with the rejected hunk in the log. Do not hand-edit around a failed hunk.
+1. Write the diff block to `steps/04-apply/<service>/<n>.patch` and, **from inside `__CODE_ROOT__/<service>`** (diff headers are repo-root-relative), apply with `git apply --check` then `git apply`. If the patch does not apply cleanly, try `git apply --3way` once; if still failing, `FAILED` with the rejected hunk in the log. Do not hand-edit around a failed hunk.
 2. After all patches for a service: `git diff --stat` must list only the files in the worklist. Save it to `steps/04-apply/<service>/diffstat.txt`.
 
 ## Step 05 — Write data scripts
 
-For each `data_scripts[]` entry, write the apply and rollback statements to the location the plan specifies (e.g. the service's migration folder) or to `RUN_DIR/outputs/data-scripts/<order>-<target>.sql` with the rollback in `<order>-<target>.rollback.sql`. Include a header comment with Jira key, execution id, plan section. Do **not** execute.
+For each `data_scripts[]` entry, write the apply and rollback statements to the location the plan specifies (e.g. the service's migration folder) or to `RUN_DIR/outputs/data-scripts/<order>-<target>.sql` with the rollback in `<order>-<target>.rollback.sql`. Include a header comment with Jira key, execution id, plan section, and the plan's `executed_by` / `change_ticket` fields. Do **not** execute. Write the list of files produced to `steps/05-data/scripts.json`.
 
 ## Step 06 — Build and test (the "after" numbers)
 
-For each service: run `code.build` with coverage. Save `steps/06-test/<service>/build.log` and `coverage/`. If tests fail:
+For each service: run `code.build` with coverage. Save `steps/06-test/<service>/build.log` and `coverage.xml`. If tests fail:
 - if the failing test is one the plan said to add/modify, and the fix is mechanical and implied by the plan → apply once, record in `deviations[]`, re-run;
 - otherwise `FAILED`; write what failed and the exact assertion into `steps/06-test/failure.md`; leave the branch in place for a human.
 
 ## Step 07 — Produce the artefacts
 
-1. `outputs/coverage-delta.md` from `templates/coverage-delta.md`: per-service before/after from steps 03 and 06; changed-line coverage computed from the coverage report against `git diff` line ranges (if the tool cannot give per-line data, say so and give class-level numbers).
+1. `outputs/coverage-delta.md` from `templates/coverage-delta.md`. Numbers come from `python scripts/coverage-delta.py --service <service> --repo __CODE_ROOT__/<service> --before steps/03-baseline/<service>/coverage.xml --after steps/06-test/<service>/coverage.xml --base <base commit> --out steps/07-artefacts/<service>.coverage.json` (JaCoCo XML; it computes totals and changed-line coverage from `git diff`). If the project uses another coverage tool, say so and give class-level numbers from its XML.
 2. `outputs/traceability-matrix.md` from the template: AC → plan section → file:lines (from the applied diffs) → test → PR. Reverse table: every changed file → AC. Unmapped files must be 0.
 3. `outputs/pr-summary.md` from the template.
-4. Standard header on all three.
+4. Standard header on all three. Record the three paths in `steps/07-artefacts/artefacts.json`.
 
 ## Step 08 — Commit and raise the PR (skipped when `DRY_RUN`)
 
 1. In each service repo: `git add` only the worklist files; commit with message `<JIRA_KEY>: <plan title> [solution <SOLUTION_EXECUTION_ID>, builder <EXECUTION_ID>]`.
 2. Push the branch and raise a PR per repo using the `scm.create_pr` tool from `config/tools.md`, body = `pr-summary.md`. If the tool is absent, print the body and the push command for the operator and mark the step `MANUAL`.
-3. Attach `coverage-delta.md` and `traceability-matrix.md` to the Jira (`jira.add_attachment`) and add a comment with the PR links (`jira.add_comment`). If the tools are absent, mark `MANUAL`.
-4. Record PR URLs in `run.json.outputs[]`.
+3. Fill the PR column of `traceability-matrix.md` with the PR URLs now that they exist, then attach `coverage-delta.md` and `traceability-matrix.md` to the Jira (`jira.add_attachment`) and add a comment with the PR links (`jira.add_comment`). If the tools are absent, mark `MANUAL`.
+4. Record PR URLs in `run.json.outputs[]` and in `steps/08-pr/pr.json`.
 
 ## Step 09 — Close the run
 
-`run.json.status = COMPLETED` (or `FAILED` / `BLOCKED` with the step id and reason). Print: execution id, status, PR links, changed-line coverage, number of ACs fully traced, and any `deviations[]`.
+In `DRY_RUN`: in every service repo `git checkout <default branch>` and delete the `dryrun/...` branch so the working trees are clean for the real run. Then `run.json.status = COMPLETED` (or `FAILED` / `BLOCKED` with the step id and reason); commit the run folder in this repo (`run: <EXECUTION_ID> <status>`, no push). Print: execution id, status, PR links, changed-line coverage, number of ACs fully traced, and any `deviations[]`.
 
 ## Self-check before closing (write answers to `steps/09-close/self-check.md`)
 - Did any file outside the worklist change? (`git status` in every repo) — must be No.

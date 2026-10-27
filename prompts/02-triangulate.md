@@ -7,7 +7,7 @@ A manifest set that passes this is good enough to route Jiras.
 `<PRODUCTS>` with the products to prove (start with the most common one; add RTP and a batch product
 later). Allowed environments per `config/tools.md`.
 
-**Pre-conditions**: every design doc has a manifest; `python scripts/validate-manifests.py` passes;
+**Pre-conditions**: every design doc has a manifest; `python scripts/validate-manifests.py --strict` passes;
 `python scripts/check-drift.py` has no HIGH finding except unverified hashes.
 
 ---
@@ -30,7 +30,7 @@ For every consecutive pair of hops (S1 → S2):
 Record each check as PASS/FAIL with the evidence in `steps/03-reality/hop-check-<product>.md`.
 
 ### C. Describe the baseline for each traced service
-For each service on the path: call describe for `<MARKET>` (lowest allowed environment). For each `onboarding_recipe.required_config[]` entry, confirm rows exist. Record PASS (rows found), EMPTY (zero rows — either optional or wrong), MISSING (table/region not returned at all). Save normalized files.
+For each service on the path: call describe for `<MARKET>` (lowest allowed environment), normalizing with section C masking. For each `onboarding_recipe.required_config[]` entry, confirm rows exist. Record PASS (rows found), EMPTY (zero rows — either optional or wrong), MISSING (table/region not returned at all). Save normalized files.
 
 ### D. Fix the manifests
 For every FAIL / EMPTY / MISSING: decide with evidence whether the manifest or the design doc is wrong.

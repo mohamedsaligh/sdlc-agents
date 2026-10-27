@@ -33,10 +33,11 @@ def load_env():
 
 
 def sha256_file(path):
+    """CR-insensitive, identical to scripts/new-run.py --hash."""
     h = hashlib.sha256()
     with open(path, "rb") as fh:
         for chunk in iter(lambda: fh.read(65536), b""):
-            h.update(chunk)
+            h.update(chunk.replace(b"\r", b""))
     return h.hexdigest()
 
 
@@ -50,6 +51,7 @@ def manifest_fields(path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--out", default=None, help="write the report to this file (UTF-8) instead of stdout; avoids PowerShell UTF-16 redirection")
     args = ap.parse_args()
 
     env = load_env()
@@ -98,7 +100,12 @@ def main():
 
     summary = {"manifests": len(manifests), "design_docs": len(docs), "service_folders": len(folders), "findings": findings,
                "high": sum(1 for f in findings if f["severity"] == "HIGH")}
-    if args.json:
+    if args.out:
+        os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
+        with open(args.out, "w", encoding="utf-8") as fh:
+            json.dump(summary, fh, indent=2)
+        print(f"wrote {args.out}: {len(findings)} finding(s), {summary['high']} HIGH")
+    elif args.json:
         print(json.dumps(summary, indent=2))
     else:
         print(f"manifests={summary['manifests']} design_docs={summary['design_docs']} service_folders={summary['service_folders']}")

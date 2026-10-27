@@ -4,8 +4,10 @@
 Jira and `__DEVCTL__` MCP servers connected. Paste everything below the line into the chat.
 Expected duration: one session. Output: five files updated, one report written.
 
-**Pre-conditions**: `scripts/init-project` has been run (no `__TOKEN__` left in `config/platform.env`);
-`python scripts/sync-agents.py` has been run.
+**Pre-conditions**: `scripts/init-project` has been run (`python scripts/init-project.py --verify` is clean);
+`python scripts/sync-agents.py` has been run; the chat is open in the multi-root workspace from
+`python scripts/make-workspace.py` (or Claude Code was started with the `--add-dir` flags it prints), so
+`__CODE_ROOT__` and `__DESIGN_DOCS_ROOT__` are readable.
 
 ---
 
@@ -28,7 +30,7 @@ continue with the next task; never silently skip.
 1. Pick one service that certainly has configuration (ask me if unsure; otherwise choose the one whose design doc mentions the most tables) and one live market.
 2. Call the describe tool for that service and market in the lowest non-production environment allowed. Save the raw response, with any secret-looking values masked as `***`, to `docs/discovery/describe.raw.example.json`.
 3. Write the raw → normalized field mapping for contract A.1 into `schema/devctl-contracts.md` section B.1: for each normalized field, the raw JSON path that supplies it, or `DERIVED: <how>` or `UNAVAILABLE: <workaround>`. Note page size / truncation behaviour.
-4. Produce one normalized example at `docs/discovery/describe.normalized.example.json` following A.1 exactly, and check it against the shape field by field.
+4. Produce one normalized example at `docs/discovery/describe.normalized.example.json` following A.1 exactly, **with section C projection and masking applied**, and check it against the shape field by field. If the describe output has columns the section C regex does not catch but that hold personal or credential data, extend the regex in section C (never shorten it) and say so in the report.
 
 ## Task 3 — Probe `__DEVCTL__` trace
 
@@ -54,6 +56,8 @@ continue with the next task; never silently skip.
 3. Bump nothing; `vocabulary_version` stays 1 until I approve.
 
 ## Task 7 — Discovery report
+
+If sections B.1, B.2 and B.3 are all filled (`UNAVAILABLE` with a workaround counts as filled), **delete the `> Status: NOT YET DISCOVERED` line in section B** of `schema/devctl-contracts.md`; otherwise leave it and list what is missing under it.
 
 Write `docs/discovery/discovery-report.md` with: tools found and missing; one paragraph per capability on reliability and limits; naming mismatches; design-doc consistency; vocabulary gaps; and a **Readiness** section listing exactly what must be fixed before prompt 01 can run. Finish by printing the readiness section in the chat.
 

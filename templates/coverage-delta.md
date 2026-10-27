@@ -11,9 +11,9 @@ Builder run: `<EXECUTION_ID>` · Branch: `feature/<JIRA-KEY>-<slug>`
 
 | Service | Build | Tests run | Passed | Failed | Line cov. before | Line cov. after | Δ | Report |
 |---|---|---|---|---|---|---|---|---|
-| service-a | PASS | | | 0 | | | | `steps/06-test/service-a/jacoco/index.html` |
+| service-a | PASS | | | 0 | | | | `steps/07-artefacts/service-a.coverage.json` |
 
-"Before" = baseline branch run performed by the Builder in step 05 on the same commit the feature branch was cut from.
+"Before" = baseline run performed by the Builder in step 03 on the base commit; "after" = step 06 on the feature branch. Numbers produced by `scripts/coverage-delta.py` from the two `coverage.xml` files.
 
 ## 2. Coverage of the changed lines only
 <!-- This is the number that matters for the review: of the lines this change added or modified, how many are executed by tests? -->

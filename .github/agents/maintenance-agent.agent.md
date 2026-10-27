@@ -17,13 +17,13 @@ Read `AGENTS.md` first.
 
 - `SCOPE`: `all` | a comma-separated list of services | `since:<git-ref>` (services whose design doc or code changed since that ref)
 - `TRIGGER`: `DESIGN_DOC_CHANGED` | `CODE_CHANGED` | `SCHEDULED` | `RUN_FEEDBACK` | `MANUAL`
-- `APPLY`: `false` (default) | `true` — whether to write accepted manifest changes
+- `APPLY_PATCHES`: empty (default: propose only) | comma-separated patch file names from a previous maintenance run's `outputs/manifest-diffs/` to apply now. Applying is always a second invocation, so the operator reviews patches between the two.
 
 ## Step 00 — Start
 
 `python scripts/new-run.py --jira MAINT --agent maintenance` → run folder under `runs/MAINT/`.
-Run `python scripts/check-drift.py --json > RUN_DIR/steps/00-start/drift.json` and
-`python scripts/validate-manifests.py --json > RUN_DIR/steps/00-start/validate.json`.
+Run `python scripts/check-drift.py --json --out RUN_DIR/steps/00-start/drift.json` and
+`python scripts/validate-manifests.py --json --out RUN_DIR/steps/00-start/validate.json`.
 
 ## Step 01 — Design doc vs manifest
 
@@ -61,7 +61,7 @@ Write `steps/04-learn/radius-accuracy.md`.
    - MED: tags out of date (a market or product added/removed)
    - LOW: wording, summary, package moves
 2. For each proposed manifest change produce a unified diff under `outputs/manifest-diffs/<service>.patch`, updating `verification.last_verified`, `verification.sources`, `design_doc_sha256` and `open_gaps`.
-3. If `APPLY = true` **and** the operator has confirmed the specific patches, apply them with `git apply`, re-run `validate-manifests.py`, and list the applied files in `run.json.outputs[]`. Otherwise leave patches for review.
+3. If `APPLY_PATCHES` names patches, apply exactly those with `git apply`, re-run `validate-manifests.py`, and list the applied files in `run.json.outputs[]`. Otherwise leave patches for review.
 4. Never apply design doc or code changes; include them as diffs in the report §3 only.
 
 ## Self-check

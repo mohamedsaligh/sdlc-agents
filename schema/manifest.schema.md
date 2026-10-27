@@ -52,7 +52,12 @@ that belongs in the design doc.
 | `verification.open_gaps[]` | list | yes | Known disagreements not yet resolved; `[]` when clean | prompts 01/02 |
 
 Vocabulary-controlled fields (`role`, `tags.*`) accept **only** values present in
-`schema/vocabulary.yaml`. `scripts/validate-manifests.py` enforces this.
+`schema/vocabulary.yaml`. `scripts/validate-manifests.py` enforces this, and also checks that every
+service named in `hops.*`, `consumes[].from` and `emits[].to` has a manifest (dangling names break routing).
+
+Empty lists are allowed, with a reason in a comment, for: `tags.markets` (service not yet live anywhere),
+`tags.clearings` and `tags.channels` (clearing/channel-agnostic service), `tags.priorities`,
+`external_interfaces`, `onboarding_recipe.required_code`, `verification.open_gaps`.
 
 ---
 

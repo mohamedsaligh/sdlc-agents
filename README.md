@@ -14,13 +14,16 @@ Jira ──► Solution Agent ──► Proposal + Confidence + Plan ──► B
 
 ## Quick start (engineering lead, one time)
 
+Requires: Git, Python 3.8+ (`pip install pyyaml` for the manifest validator), VS Code with Copilot agent mode and/or Claude Code, and the Jira + `__DEVCTL__` MCP servers.
+
 ```bash
 # 1. tell the repo about your environment (edit the right-hand sides, then run ONE of these)
 notepad config\platform.env   &&  scripts\init-project.cmd            # Windows
 $EDITOR config/platform.env   &&  bash scripts/init-project.sh         # Mac / Linux / Git Bash
 
-# 2. generate harness adapters for Copilot and Claude Code
+# 2. generate harness adapters for Copilot and Claude Code, and the multi-root workspace the agents need
 python scripts/sync-agents.py
+python scripts/make-workspace.py        # open the .code-workspace in VS Code, or use the printed `claude --add-dir` flags
 
 # 3. in VS Code (Copilot agent mode) or Claude Code, with Jira + __DEVCTL__ MCP servers connected:
 #    paste prompts/00-discover.md  →  01-build-manifests.md (batches)  →  02-triangulate.md  →  03-validate-repo.md
@@ -34,14 +37,14 @@ Full order of operations with exit tests: **`docs/runbook.md`**. Presentation: *
 | Path | What | Edit? |
 |---|---|---|
 | `AGENTS.md` | Operating rules for every agent (Copilot reads it directly; `CLAUDE.md` imports it) | yes |
-| `agents/` | Canonical definitions: `solution-agent.md` (6 sub-agents), `builder-agent.md`, `maintenance-agent.md` | yes |
+| `agents/` | Canonical definitions: `solution-agent.md` (6 stages), `builder-agent.md`, `maintenance-agent.md` | yes |
 | `.github/agents/`, `.claude/agents/` | Generated adapters — `python scripts/sync-agents.py` | **no** |
 | `config/` | `platform.env` (tokens), `tools.md` (MCP registry), `thresholds.yaml` (confidence lanes & gate) | yes |
 | `schema/` | Manifest schema/template/example, Jira fields, controlled vocabulary, `__DEVCTL__` contracts, run record | rarely |
 | `manifests/` | One YAML per service — the map (shape only) | via prompts 01/02 and the maintenance agent |
 | `templates/` | The shapes of every output document (standard header included) | yes |
 | `prompts/` | Operator prompts: `00` discover · `01` manifests · `02` triangulate · `03` validate · `10` solution · `20` builder · `30` maintenance | yes |
-| `scripts/` | `init-project` · `sync-agents` · `new-run` · `validate-manifests` · `check-drift` (stdlib; validator needs `pyyaml`) | yes |
+| `scripts/` | `init-project` · `sync-agents` · `make-workspace` · `new-run` · `validate-manifests` · `check-drift` · `coverage-delta` (stdlib; validator needs `pyyaml`) | yes |
 | `runs/` | Audit trail: `runs/<JIRA-KEY>/<EXECUTION_ID>/` | agents only |
 | `docs/` | Design canvas, runbook, decisions, discovery outputs, readiness report | yes |
 

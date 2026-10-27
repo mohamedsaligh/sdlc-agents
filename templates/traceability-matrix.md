@@ -21,7 +21,7 @@ Solution run: `<SOLUTION_EXECUTION_ID>` · Plan hash: `<plan_sha256>` · Builder
 |---|---|---|
 
 ## 3. Gaps and deviations from the approved plan
-<!-- The Builder may not improvise. Anything that differs from the plan is listed here and the run is FAILED unless the deviation is zero. -->
+<!-- The Builder may not improvise. Every difference from the plan is listed here. Allowed: at most one mechanical fix per service (builder-agent hard rule 2), recorded in run.json.deviations[]. Anything beyond that means the run is FAILED. -->
 
 | # | Plan said | What happened | Why | Action needed |
 |---|---|---|---|---|
