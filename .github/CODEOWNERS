@@ -1,0 +1,23 @@
+# CODEOWNERS — who must review changes to each path before merge.
+# Step 1.2c of docs/runbook.md: replace the team handles below with your real GitHub teams,
+# then ask the repo admin to enable on `main`:
+#   Branch protection -> "Require a pull request before merging" -> "Require review from Code Owners"
+#   Branch protection -> "Require signed commits"
+# Together with the Builder's git-log check (agents/builder-agent.md Step 00), this is what makes
+# an approval.json an audit-grade approval rather than a text file.
+
+# Approvals: only BAs and engineering leads may add or change an approval record.
+runs/**/approval.json        @your-org/ba-team @your-org/engineering-leads
+
+# The map itself: service owners + engineering leads.
+manifests/                   @your-org/engineering-leads
+schema/                      @your-org/engineering-leads
+config/                      @your-org/engineering-leads
+
+# Agent behaviour: engineering leads only (generated adapters follow the canonical files).
+agents/                      @your-org/engineering-leads
+.github/agents/              @your-org/engineering-leads
+.claude/agents/              @your-org/engineering-leads
+AGENTS.md                    @your-org/engineering-leads
+templates/                   @your-org/engineering-leads
+prompts/                     @your-org/engineering-leads

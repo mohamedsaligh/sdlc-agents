@@ -10,7 +10,7 @@ Timelines are yours; the order is not negotiable because each step feeds the nex
 | 1.1 | Edit `config/platform.env`, then `scripts\init-project.cmd` (Windows) or `bash scripts/init-project.sh` | Eng lead | `config/.initialized` exists; `python scripts/init-project.py --verify` reports no unreplaced placeholders |
 | 1.2 | `python scripts/sync-agents.py` | Eng lead | `.github/agents/` and `.claude/agents/` contain three agents each |
 | 1.2b | `python scripts/make-workspace.py` and open the generated `.code-workspace` in VS Code (or start Claude Code with the printed `--add-dir` flags) | Eng lead | the chat can list files under `__CODE_ROOT__` and `__DESIGN_DOCS_ROOT__` |
-| 1.2c | Ask the repo admin for CODEOWNERS on `runs/**/approval.json` (BA team + engineering leads) and signed commits | Eng lead | approvals cannot be committed by anyone else |
+| 1.2c | Edit the team handles in `.github/CODEOWNERS`, then ask the repo admin to enable "Require review from Code Owners" and "Require signed commits" on `main`. (No file to create: `approval.json` only appears per run, in phase 3.) | Eng lead + repo admin | branch protection shows both rules on |
 | 1.3 | Connect Jira and `__DEVCTL__` MCP servers in VS Code / Claude Code | Eng lead | tools visible in the chat's tool list |
 | 1.4 | Run `prompts/00-discover.md` | Eng lead | `config/tools.md` and `schema/devctl-contracts.md` filled; `docs/discovery/discovery-report.md` Readiness clear |
 | 1.5 | Ask the Jira admin for the four dropdown fields (`schema/jira-fields.md`) | Eng lead / BA | fields exist, or the `agent-fields:` fallback agreed with BAs |
