@@ -1,8 +1,10 @@
 # Service Manifest — schema and completeness rules
 
-One manifest per service, at `manifests/<service>.yaml`. `<service>` must equal:
-the service's folder name under `__CODE_ROOT__`, **and** the stem of its design doc
-`__DESIGN_DOCS_ROOT__/<service>.md`. That naming rule is what lets agents join the three
+One manifest per service, at `manifests/<service>.yaml`. `<service>` must equal the service's folder
+name under `__CODE_ROOT__`. The design doc is referenced by `design_doc`, a path relative to
+`__DESIGN_DOCS_ROOT__` that is **either a single file** (`<service>.md`) **or a folder** (e.g.
+`<id>-architecture/`, holding `service.yaml` and other files). When the design docs are folders whose names
+do not equal the service name, the manifest's `design_doc` field is the join — keep it exact. That naming rule is what lets agents join the three
 sources without a lookup table.
 
 A manifest holds **shape, not data**. It answers "what does this service touch and serve"
@@ -20,8 +22,8 @@ that belongs in the design doc.
 |---|---|---|---|---|
 | `service` | string | yes | Identifier, see naming rule above | folder name |
 | `manifest_version` | int | yes | Schema version, currently `1` | fixed |
-| `design_doc` | string | yes | Path relative to `__DESIGN_DOCS_ROOT__` | — |
-| `design_doc_sha256` | string | yes | SHA-256 of the design doc when this manifest was last verified. `scripts/check-drift.py` compares it. | computed |
+| `design_doc` | string | yes | Path relative to `__DESIGN_DOCS_ROOT__`: a file or a folder | — |
+| `design_doc_sha256` | string | yes | `python scripts/new-run.py --hash <path>` of the design doc when last verified. For a folder it is the hash of every file inside, sorted, so any change in the folder is drift. `scripts/check-drift.py` compares it. | computed |
 | `summary` | string | yes | One sentence, business language | design doc |
 | `role` | enum | yes | One of `schema/vocabulary.yaml: roles` | design doc |
 | `consumes[]` | list | yes | `{event, from[], channel}` — events/messages this service listens to | design doc, verified in code |
@@ -69,7 +71,7 @@ A manifest is complete when all of the following hold. Prompt 01 produces it; pr
 2. **Code agreement**: every `consumes[].event`, `emits[].event`, `config.tables[]`, `config.cache_regions[]` and `code.entrypoints[]` value appears in the service's source under `__CODE_ROOT__/<service>` (string search is sufficient). Anything named in the design doc but absent in code goes to `verification.open_gaps[]`, not into the field.
 3. **Trace agreement**: for at least one real payment per product the service handles, the service appears in the `trace` hop list exactly where `hops.upstream/downstream` say it should. Mismatches go to `open_gaps[]`.
 4. **Data agreement**: for at least one live market, `describe` returns rows for every `onboarding_recipe.required_config[]` entry. Entries that return nothing are either wrong or optional — decide, and record the decision.
-5. **Join integrity**: `service` == folder name under `__CODE_ROOT__` == design doc stem.
+5. **Join integrity**: `service` == folder name under `__CODE_ROOT__`; `design_doc` resolves to an existing file or folder under `__DESIGN_DOCS_ROOT__`.
 6. **Validator passes**: `python scripts/validate-manifests.py` reports zero errors.
 
 A manifest with `open_gaps[]` non-empty is still usable; the Solution Agent lowers the MAP lane

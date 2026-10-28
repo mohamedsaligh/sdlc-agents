@@ -6,6 +6,7 @@ Usage:
   python scripts/new-run.py --jira PAY-1234 --agent builder --parent RUN-20261028-031200-PAY-1234
   python scripts/new-run.py --jira PAY-1234 --agent solution --parent <BASE_ID> --work-package WP-03
   python scripts/new-run.py --hash runs/PAY-1234/<id>/outputs/implementation-plan.md
+  python scripts/new-run.py --hash <DESIGN_DOCS_ROOT>/<design-doc file or folder>
 
 Prints EXECUTION_ID and RUN_DIR on separate lines (machine-readable), nothing else.
 Standard library only, so it runs on any engineer's machine.
@@ -57,8 +58,22 @@ def read_version(path, key):
     return None
 
 
-def sha256_file(path):
-    """SHA-256 of the file with CR bytes removed, so Windows (CRLF) and Linux (LF) checkouts agree."""
+def sha256_path(path):
+    """SHA-256 of a file (CR bytes removed) or of a FOLDER: every file under it, sorted by relative
+    path, hashed as '<relpath>\n<content-hash>\n'. Identical on Windows and Linux."""
+    h = hashlib.sha256()
+    if os.path.isdir(path):
+        for dirpath, dirnames, filenames in os.walk(path):
+            dirnames[:] = sorted(d for d in dirnames if not d.startswith("."))
+            for name in sorted(filenames):
+                fp = os.path.join(dirpath, name)
+                rel = os.path.relpath(fp, path).replace(os.sep, "/")
+                h.update(f"{rel}\n{_sha256_file(fp)}\n".encode())
+        return h.hexdigest()
+    return _sha256_file(path)
+
+
+def _sha256_file(path):
     h = hashlib.sha256()
     with open(path, "rb") as fh:
         for chunk in iter(lambda: fh.read(65536), b""):
@@ -73,11 +88,11 @@ def main():
     ap.add_argument("--parent", default=None, help="parent EXECUTION_ID (builder -> solution run; slice -> base run)")
     ap.add_argument("--work-package", default=None, help="onboarding work package id, e.g. WP-03")
     ap.add_argument("--harness", default=os.environ.get("AGENT_HARNESS", "unknown"), help="copilot | claude-code")
-    ap.add_argument("--hash", default=None, help="print SHA-256 of a file and exit")
+    ap.add_argument("--hash", default=None, help="print SHA-256 of a file OR a folder (design-doc folder) and exit")
     args = ap.parse_args()
 
     if args.hash:
-        print(sha256_file(args.hash))
+        print(sha256_path(args.hash))
         return 0
 
     if not args.jira or not args.agent:

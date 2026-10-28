@@ -4,7 +4,7 @@
 Reports:
   - design docs without a manifest, manifests without a design doc
   - service folders under CODE_ROOT without a manifest, manifests without a folder
-  - manifests whose design_doc_sha256 no longer matches the design doc (doc changed, manifest not re-verified)
+  - manifests whose design_doc_sha256 no longer matches the design doc — a file or a folder (doc changed, manifest not re-verified)
 
   python scripts/check-drift.py            # human output; exit 1 if any HIGH finding
   python scripts/check-drift.py --json     # for the maintenance agent
@@ -32,8 +32,22 @@ def load_env():
     return env
 
 
-def sha256_file(path):
-    """CR-insensitive, identical to scripts/new-run.py --hash."""
+def sha256_path(path):
+    """SHA-256 of a file (CR bytes removed) or of a FOLDER: every file under it, sorted by relative
+    path, hashed as '<relpath>\n<content-hash>\n'. Identical on Windows and Linux."""
+    h = hashlib.sha256()
+    if os.path.isdir(path):
+        for dirpath, dirnames, filenames in os.walk(path):
+            dirnames[:] = sorted(d for d in dirnames if not d.startswith("."))
+            for name in sorted(filenames):
+                fp = os.path.join(dirpath, name)
+                rel = os.path.relpath(fp, path).replace(os.sep, "/")
+                h.update(f"{rel}\n{_sha256_file(fp)}\n".encode())
+        return h.hexdigest()
+    return _sha256_file(path)
+
+
+def _sha256_file(path):
     h = hashlib.sha256()
     with open(path, "rb") as fh:
         for chunk in iter(lambda: fh.read(65536), b""):
@@ -67,7 +81,14 @@ def main():
 
     docs = {}
     if os.path.isdir(docs_root):
-        docs = {os.path.splitext(f)[0]: os.path.join(docs_root, f) for f in os.listdir(docs_root) if f.endswith(".md") and not f.startswith(("_", "README"))}
+        # a design doc is either <stem>.md or a folder <stem>/ (any layout inside)
+        docs = {}
+        for f in os.listdir(docs_root):
+            fp = os.path.join(docs_root, f)
+            if f.startswith((".", "_", "README")):
+                continue
+            if os.path.isdir(fp) or f.endswith(".md"):
+                docs[os.path.splitext(f)[0] if not os.path.isdir(fp) else f] = fp
     else:
         findings.append({"severity": "HIGH", "kind": "DESIGN_DOCS_ROOT_MISSING", "detail": docs_root})
 
@@ -77,10 +98,18 @@ def main():
     else:
         findings.append({"severity": "HIGH", "kind": "CODE_ROOT_MISSING", "detail": code_root})
 
-    for s in sorted(set(docs) - set(manifests)):
-        findings.append({"severity": "HIGH", "kind": "DOC_WITHOUT_MANIFEST", "service": s})
-    for s in sorted(set(manifests) - set(docs)):
-        findings.append({"severity": "MED", "kind": "MANIFEST_WITHOUT_DOC", "service": s})
+    # join docs <-> manifests through the manifest's design_doc field (folder names need not equal service names)
+    referenced = {}
+    for s, mpath in manifests.items():
+        doc_rel, _ = manifest_fields(mpath)
+        if doc_rel:
+            referenced[doc_rel.strip("/").split("/")[0]] = s
+    for d in sorted(set(docs) - set(referenced)):
+        findings.append({"severity": "HIGH", "kind": "DOC_WITHOUT_MANIFEST", "service": d, "detail": "no manifest's design_doc points here"})
+    for s, mpath in sorted(manifests.items()):
+        doc_rel, _ = manifest_fields(mpath)
+        if not doc_rel or not os.path.exists(os.path.join(docs_root, doc_rel)):
+            findings.append({"severity": "MED", "kind": "MANIFEST_WITHOUT_DOC", "service": s, "detail": f"design_doc '{doc_rel}' not found under DESIGN_DOCS_ROOT"})
     if folders:
         for s in sorted(set(folders) - set(manifests)):
             findings.append({"severity": "MED", "kind": "FOLDER_WITHOUT_MANIFEST", "service": s, "detail": "ignore if the folder is not a service"})
@@ -93,8 +122,8 @@ def main():
             findings.append({"severity": "HIGH", "kind": "MANIFEST_MISSING_SHA", "service": s})
             continue
         dpath = os.path.join(docs_root, doc_rel) if docs_root else None
-        if dpath and os.path.isfile(dpath):
-            actual = sha256_file(dpath)
+        if dpath and os.path.exists(dpath):
+            actual = sha256_path(dpath)
             if actual != sha:
                 findings.append({"severity": "HIGH", "kind": "DESIGN_DOC_CHANGED", "service": s, "detail": f"manifest sha {sha[:12]} != doc sha {actual[:12]}; re-verify manifest"})
 
