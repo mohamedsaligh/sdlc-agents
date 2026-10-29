@@ -21,6 +21,8 @@ Timelines are yours; the order is not negotiable because each step feeds the nex
 
 ## Phase 2 — Solution Agent demo
 
+> Shortcut when manifests are not built yet: `prompts/40-demo-radius-first.md` runs the same agent with the design docs as the map and pauses on `radius.md` for a human look. Use it for the first demo; switch to prompt 10 once manifests exist.
+
 | # | Do | Who | Exit test |
 |---|----|-----|-----------|
 | 2.1 | Pick the demo Jira (ENHANCEMENT touching 2–3 services, or a NEW feature). Write down privately which services you expect. | Eng lead | note kept |

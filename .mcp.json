@@ -1,0 +1,5 @@
+{
+  "mcpServers": {
+    "__DEVCTL__": { "type": "stdio", "command": "__DEVCTL__-mcp", "args": [] }
+  }
+}

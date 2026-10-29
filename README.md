@@ -43,7 +43,7 @@ Full order of operations with exit tests: **`docs/runbook.md`**. Presentation: *
 | `schema/` | Manifest schema/template/example, Jira fields, controlled vocabulary, `__DEVCTL__` contracts, run record | rarely |
 | `manifests/` | One YAML per service — the map (shape only) | via prompts 01/02 and the maintenance agent |
 | `templates/` | The shapes of every output document (standard header included) | yes |
-| `prompts/` | Operator prompts: `00` discover · `01` manifests · `02` triangulate · `03` validate · `10` solution · `20` builder · `30` maintenance | yes |
+| `prompts/` | Operator prompts: `00` discover · `01` manifests · `02` triangulate · `03` validate · `10` solution · `20` builder · `30` maintenance · `40` radius-first demo (before manifests exist) | yes |
 | `scripts/` | `init-project` · `sync-agents` · `make-workspace` · `new-run` · `validate-manifests` · `check-drift` · `coverage-delta` (stdlib; validator needs `pyyaml`) | yes |
 | `runs/` | Audit trail: `runs/<JIRA-KEY>/<EXECUTION_ID>/` | agents only |
 | `docs/` | Design canvas, runbook, decisions, discovery outputs, readiness report | yes |
